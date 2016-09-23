@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+		#wrapper{
+          width: 800px;
+          height: 500px;
+          background-color: ghostwhite;
+          margin: 0;
+          padding: 0;
+          display: block;
+		}
+      canvas{
+        width: 100%;
+        height: 100%;
+      }
+	</style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script type="text/babel" >
+      "use strict";
+      let socket;
+
+      let canvas;
+      let ctx;
+      let set;
+      let mouseX;
+      let mouseY;
+      //fired when app client starts, initializes socket logic
+      const init = () => {
+        canvas = document.querySelector('canvas');
+        ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 500;
+        set = {};
+        mouseX = 0;
+        mouseY = 0;
+
+        //event listener for when the mouse moves over the canvas
+        canvas.addEventListener('mousemove', (e) => {
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+        });
+        //event listener for when the mouse is clicked
+        canvas.addEventListener('click', (e) => {
+          console.log("canvas has been clicked...");
+          let time = new Date().getTime();
+          socket.emit('requestShape', { x: mouseX, y: mouseY, t: time });
+        });
+        
+        //assign event handlers
+        setupSocket();
+        //join the room
+        socket.emit('join');
+        socket.emit('requestInitialSet');
+      }
+
+      //when socket is connected, adds event handlers
+      const setupSocket = () => {
+        //establish socket connection
+        socket = io.connect();
+        
+        //take set data on server and copy to local set
+        socket.on('serveInitialSet', (data) => {
+          console.log("receiving initial set...");
+          set = data;
+          console.log(data);
+          drawSet();
+        });
+        
+        //add data of to set and draw
+        socket.on('serveShape', (data) => {
+          console.log("receiving shape...");
+          set[data.t] = data;
+          drawSet();
+        });
+      }
+
+      const drawSet = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let keys = Object.keys(set);
+        //for loop for every shape
+        for(let i = 0; i < keys.length; i++){
+          const piece = set[keys[i]];
+          
+          ctx.save();
+          //determine color based on typing
+          if(piece.type === 0){
+            ctx.fillStyle = 'red';
+          } else{
+            ctx.fillStyle = 'black';
+          }
+          
+          ctx.beginPath();
+          ctx.arc(piece.x-10,piece.y-10, 20, 0, 2 * Math.PI, false);
+          ctx.fill();
+          ctx.restore();
+        }
+      };
+
+      
+      
+      window.onload = init;
+    </script>
+</head>
+<body>
+  <div id='wrapper'>
+  <canvas>Use a browser that supports modern web capabilities</canvas>
+  </div>
+</body>
+</html>
